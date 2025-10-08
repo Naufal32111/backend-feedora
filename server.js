@@ -2,14 +2,18 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
-const mqttClient = require("../mqttClient"); // ✅ perbaiki path relatif
+const http = require("http");
+const { Server } = require("socket.io");
+
+// Import MQTT client instance
+const mqttClient = require("./mqttClient");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Atlas connection
-mongoose.connect(process.env.MONGO_URI)
+/* ================= MONGODB ================= */
+mongoose.connect("mongodb+srv://Naufal26:707369123.@cluster0.lnmslos.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.error("❌ MongoDB Error:", err));
 
