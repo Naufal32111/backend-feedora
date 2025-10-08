@@ -1,21 +1,24 @@
 const mqtt = require("mqtt");
 
-// Ganti broker sesuai kebutuhan
-const client = mqtt.connect("mqtt://broker.hivemq.com:1883");
+let client;
 
-// Ketika berhasil connect
-client.on("connect", () => {
-  console.log("✅ MQTT Connected");
+if (!global.mqttClient) {
+  client = mqtt.connect("mqtt://broker.hivemq.com:1883");
 
-  // Subscribe semua topik yang dibutuhkan
-  client.subscribe("feeder/info");
-  client.subscribe("feeder/control");
-  client.subscribe("feeder/schedule");
-});
+  client.on("connect", () => {
+    console.log("✅ MQTT Connected");
+    client.subscribe("feeder/info");
+    client.subscribe("feeder/control");
+    client.subscribe("feeder/schedule");
+  });
 
-// Error handling
-client.on("error", (err) => {
-  console.error("❌ MQTT Error:", err);
-});
+  client.on("error", (err) => {
+    console.error("❌ MQTT Error:", err);
+  });
 
-module.exports = client; // 🚀 Export instance MQTT
+  global.mqttClient = client;
+} else {
+  client = global.mqttClient;
+}
+
+module.exports = client;

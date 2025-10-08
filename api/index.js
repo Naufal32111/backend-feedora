@@ -2,18 +2,14 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
-const http = require("http");
-const { Server } = require("socket.io");
-
-// Import MQTT client instance
-const mqttClient = require("./mqttClient");
+const mqttClient = require("../mqttClient"); // ✅ perbaiki path relatif
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* ================= MONGODB ================= */
-mongoose.connect(process.env.MONGO_URI || "default_url")
+// MongoDB Atlas connection
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.error("❌ MongoDB Error:", err));
 
