@@ -2,8 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
-const http = require("http");
-const { Server } = require("socket.io");
+require("dotenv").config();
 
 // Import MQTT client instance
 const mqttClient = require("../mqttClient");
@@ -13,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 /* ================= MONGODB ================= */
-mongoose.connect("mongodb+srv://Naufal26:707369123.@cluster0.lnmslos.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.error("❌ MongoDB Error:", err));
 
@@ -40,7 +39,7 @@ const Kolam = mongoose.model("Kolam", kolamSchema);
 
 // === Schedule Schema ===
 const scheduleSchema = new mongoose.Schema({
-  source: { type: String, required: true }, // bisa esp32_xxx, MQTT, atau userId
+  source: { type: String, required: true },
   hour: Number,
   minute: Number,
   portion: Number,
@@ -51,7 +50,7 @@ const Schedule = mongoose.model("Schedule", scheduleSchema);
 
 // === Control Schema ===
 const controlSchema = new mongoose.Schema({
-  source: { type: String, required: true }, // bisa esp32_xxx, MQTT, atau userId
+  source: { type: String, required: true },
   action: String,
   portion: Number,
   createdAt: { type: Date, default: Date.now }
@@ -204,10 +203,8 @@ app.post("/kolam", async (req, res) => {
       feeder: 1,
     });
 
-    // Simpan kolam dulu agar punya _id
     await kolamBaru.save();
 
-    // === Tambahkan InfoFeeder otomatis setelah kolam berhasil dibuat ===
     const infoFeederBaru = new InfoFeeder({
       kolamId: kolamBaru._id,
       jenisPakan: "",
@@ -225,7 +222,6 @@ app.post("/kolam", async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 });
-
 
 app.get("/kolam/:userId", async (req, res) => {
   try {
@@ -251,7 +247,6 @@ app.get("/info-feeder/:kolamId", async (req, res) => {
   }
 });
 
-// === UPDATE INFO FEEDER ===
 app.put("/info-feeder/update/:kolamId", async (req, res) => {
   try {
     const { kolamId } = req.params;
@@ -277,7 +272,7 @@ app.put("/info-feeder/update/:kolamId", async (req, res) => {
 app.put("/kolam/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body; // bisa berisi infoKeluaran, nama, dll
+    const updateData = req.body;
 
     const kolam = await Kolam.findByIdAndUpdate(id, updateData, { new: true });
 
@@ -321,13 +316,11 @@ app.put("/kolam/update-info/:id", async (req, res) => {
   }
 });
 
-
 /* ================= HAPUS KOLAM ================= */
 app.delete("/kolam/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Hapus semua schedule terkait kolam ini juga (biar rapi)
     await Schedule.deleteMany({ kolamId: id });
 
     const kolam = await Kolam.findByIdAndDelete(id);
@@ -362,50 +355,15 @@ app.get("/control/:source", async (req, res) => {
   }
 });
 
-
-/* ================= SOCKET.IO SETUP ================= */
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
-
-io.on("connection", (socket) => {
-  console.log("✅ Client connected via Socket.io");
-
-  socket.on("playFeeder", (data) => {
-    console.log("▶️ Play command:", data);
-    mqttClient.publish("feeder/control", JSON.stringify(data));
-  });
-
-  socket.on("addSchedule", (data) => {
-    console.log("🕒 Add schedule:", data);
-    mqttClient.publish("feeder/schedule", JSON.stringify(data));
-  });
-
-  socket.on("deleteSchedule", (data) => {
-    console.log("❌ Delete schedule:", data);
-    mqttClient.publish("feeder/schedule", JSON.stringify({
-      action: "REMOVE",
-      hour: data.hour,
-      minute: data.minute,
-      portion: data.portion,
-      source: "App",
-    }));
-  });
-});
-
+/* ================= MQTT LISTENER ================= */
 mqttClient.on("message", async (topic, message) => {
   try {
     const data = JSON.parse(message.toString());
     console.log(`📩 MQTT [${topic}]`, data);
 
-    if (topic === "feeder/info") {
-      io.emit("feederInfo", data);
-    }
-
     if (topic === "feeder/control") {
-      io.emit("feederControl", data);
-
       const control = new Control({
-        source: data.source,   // langsung pakai source sebagai kunci
+        source: data.source,
         action: data.action,
         portion: data.portion
       });
@@ -413,11 +371,9 @@ mqttClient.on("message", async (topic, message) => {
     }
 
     if (topic === "feeder/schedule") {
-      io.emit("feederSchedule", data);
-
       if (data.action === "ADD") {
         const schedule = new Schedule({
-          source: data.source,  // langsung pakai source
+          source: data.source,
           hour: data.hour,
           minute: data.minute,
           portion: data.portion,
@@ -438,8 +394,7 @@ mqttClient.on("message", async (topic, message) => {
   }
 });
 
-
-
-
 const PORT = 5000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
 module.exports = app;
