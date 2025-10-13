@@ -6,7 +6,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 // Import MQTT client instance
-const mqttClient = require("./mqttClient");
+const mqttClient = require("../mqttClient");
 
 const app = express();
 app.use(cors());
@@ -442,6 +442,4 @@ mqttClient.on("message", async (topic, message) => {
 
 
 const PORT = 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on http://192.168.1.17:${PORT}`);
-});
+module.exports = app;
